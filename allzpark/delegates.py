@@ -10,9 +10,7 @@ class Package(QtWidgets.QStyledItemDelegate):
         if index.column() != 1:
             return
 
-        editor = QtWidgets.QComboBox(parent)
-
-        return editor
+        return QtWidgets.QComboBox(parent)
 
     def setEditorData(self, editor, index):
         model = index.model()
@@ -32,4 +30,4 @@ class Package(QtWidgets.QStyledItemDelegate):
         if not version or version == default:
             return
 
-        self._ctrl.patch("%s==%s" % (package, version))
+        self._ctrl.patch(f"{package}=={version}")

@@ -86,17 +86,13 @@ class QtImageViewer(QGraphicsView):
         """ Returns the scene's current image pixmap as a QPixmap, or else None if no image exists.
         :rtype: QPixmap | None
         """
-        if self.hasImage():
-            return self._pixmapHandle.pixmap()
-        return None
+        return self._pixmapHandle.pixmap() if self.hasImage() else None
 
     def image(self):
         """ Returns the scene's current image pixmap as a QImage, or else None if no image exists.
         :rtype: QImage | None
         """
-        if self.hasImage():
-            return self._pixmapHandle.pixmap().toImage()
-        return None
+        return self._pixmapHandle.pixmap().toImage() if self.hasImage() else None
 
     def setImage(self, image):
         """ Set the scene's current image pixmap to the input QImage or QPixmap.

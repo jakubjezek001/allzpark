@@ -53,8 +53,7 @@ def _get_trigger(model, trigger_name, *args, **kwargs):
     Returns:
         bool: True if a transitions has been conducted or the trigger event has been queued.
     """
-    func = getattr(model, trigger_name, None)
-    if func:
+    if func := getattr(model, trigger_name, None):
         return func(*args, **kwargs)
     raise AttributeError("Model has no trigger named '%s'" % trigger_name)
 
@@ -71,7 +70,7 @@ def _prep_ordered_arg(desired_length, arguments=None):
         list: Parameter sets with the desired length.
     """
     arguments = listify(arguments) if arguments is not None else [None]
-    if len(arguments) != desired_length and len(arguments) != 1:
+    if len(arguments) not in [desired_length, 1]:
         raise ValueError("Argument length must be either 1 or the same length as "
                          "the number of transitions.")
     if len(arguments) == 1:
@@ -134,7 +133,7 @@ class State(object):
                 'enter' or 'exit'.
             func (string): The name of the callback function.
         """
-        callback_list = getattr(self, 'on_' + trigger)
+        callback_list = getattr(self, f'on_{trigger}')
         callback_list.append(func)
 
     def __repr__(self):
@@ -182,7 +181,7 @@ class Condition(object):
         return predicate(*event_data.args, **event_data.kwargs) == self.target
 
     def __repr__(self):
-        return "<%s(%s)@%s>" % (type(self).__name__, self.func, id(self))
+        return f"<{type(self).__name__}({self.func})@{id(self)}>"
 
 
 class Transition(object):
@@ -229,11 +228,11 @@ class Transition(object):
 
         self.conditions = []
         if conditions is not None:
-            for cond in listify(conditions):
-                self.conditions.append(Condition(cond))
+            self.conditions.extend(Condition(cond) for cond in listify(conditions))
         if unless is not None:
-            for cond in listify(unless):
-                self.conditions.append(Condition(cond, target=False))
+            self.conditions.extend(
+                Condition(cond, target=False) for cond in listify(unless)
+            )
 
     def execute(self, event_data):
         """ Execute the transition.
@@ -390,11 +389,10 @@ class Event(object):
         if state.name not in self.transitions:
             msg = "%sCan't trigger event %s from state %s!" % (self.machine.name, self.name,
                                                                state.name)
-            if state.ignore_invalid_triggers:
-                _LOGGER.warning(msg)
-                return False
-            else:
+            if not state.ignore_invalid_triggers:
                 raise MachineError(msg)
+            _LOGGER.warning(msg)
+            return False
         event_data = EventData(state, self, self.machine, model, args=args, kwargs=kwargs)
         return self._process(event_data)
 
@@ -550,7 +548,7 @@ class Machine(object):
         self.before_state_change = before_state_change
         self.after_state_change = after_state_change
         self.finalize_event = finalize_event
-        self.name = name + ": " if name is not None else ""
+        self.name = f"{name}: " if name is not None else ""
 
         self.models = []
 
@@ -642,9 +640,7 @@ class Machine(object):
         return the model instance itself instead of the underlying list  if there is only one attached
         to the machine.
         """
-        if len(self.models) == 1:
-            return self.models[0]
-        return self.models
+        return self.models[0] if len(self.models) == 1 else self.models
 
     @property
     def before_state_change(self):
@@ -764,10 +760,13 @@ class Machine(object):
         # Add automatic transitions after all states have been created
         if self.auto_transitions:
             for state in self.states.keys():
-                self.add_transition('to_%s' % state, self.wildcard_all, state)
+                self.add_transition(f'to_{state}', self.wildcard_all, state)
 
     def _add_model_to_state(self, state, model):
-        self._checked_assignment(model, 'is_%s' % state.name, partial(self.is_state, state.name, model))
+        self._checked_assignment(
+            model, f'is_{state.name}', partial(self.is_state, state.name, model)
+        )
+
 
         # Add dynamic method callbacks (enter/exit) if there are existing bound methods in the model
         # except if they are already mentioned in 'on_enter/exit' of the defined state
@@ -906,7 +905,7 @@ class Machine(object):
         idx = states.index(self._initial)
         states = states[idx:] + states[:idx]
 
-        for i in range(0, len(states) - 1):
+        for i in range(len(states) - 1):
             self.add_transition(trigger, states[i], states[i + 1],
                                 conditions=conditions[i],
                                 unless=unless[i],
@@ -932,10 +931,7 @@ class Machine(object):
             source (string): Limits removal to transitions from a certain state.
             dest (string): Limits removal to transitions to a certain state.
         """
-        if trigger:
-            events = (self.events[trigger], )
-        else:
-            events = self.events.values()
+        events = (self.events[trigger], ) if trigger else self.events.values()
         transitions = []
         for event in events:
             transitions.extend(
@@ -955,19 +951,23 @@ class Machine(object):
         """
         source = listify(source) if source != "*" else source
         dest = listify(dest) if dest != "*" else dest
-        # outer comprehension, keeps events if inner comprehension returns lists with length > 0
-        tmp = {key: value for key, value in
-               {k: [t for t in v
+        if tmp := {
+            key: value
+            for key, value in {
+                k: [
+                    t
+                    for t in v
                     # keep entries if source should not be filtered; same for dest.
-                    if (source != "*" and t.source not in source) or (dest != "*" and t.dest not in dest)]
-                   # }.items() takes the result of the inner comprehension and uses it
-                   # for the outer comprehension (see first line of comment)
-                for k, v in self.events[trigger].transitions.items()}.items()
-               if len(value) > 0}
-        # convert dict back to defaultdict in case tmp is not empty
-        if tmp:
+                    if (source != "*" and t.source not in source)
+                    or (dest != "*" and t.dest not in dest)
+                ]
+                # }.items() takes the result of the inner comprehension and uses it
+                # for the outer comprehension (see first line of comment)
+                for k, v in self.events[trigger].transitions.items()
+            }.items()
+            if len(value) > 0
+        }:
             self.events[trigger].transitions = defaultdict(list, **tmp)
-        # if no transition is left remove the trigger from the machine and all models
         else:
             for model in self.models:
                 delattr(model, trigger)
@@ -982,7 +982,7 @@ class Machine(object):
         Returns:
             bool The truth value of all triggers combined with AND
         """
-        return all([getattr(model, trigger)(*args, **kwargs) for model in self.models])
+        return all(getattr(model, trigger)(*args, **kwargs) for model in self.models)
 
     def callback(self, func, event_data):
         """ Trigger a callback function with passed event_data parameters. In case func is a string,
@@ -1034,20 +1034,19 @@ class Machine(object):
             if state in self.states.values():
                 return True
             else:
-                raise ValueError('State %s has not been added to the machine' % state.name)
+                raise ValueError(f'State {state.name} has not been added to the machine')
         else:
             return False
 
     def _process(self, trigger):
 
-        # default processing
         if not self.has_queue:
-            if not self._transition_queue:
-                # if trigger raises an Error, it has to be handled by the Machine.process caller
-                return trigger()
-            else:
+            if self._transition_queue:
                 raise MachineError("Attempt to process events synchronously while transition queue is not empty!")
 
+            else:
+                # if trigger raises an Error, it has to be handled by the Machine.process caller
+                return trigger()
         # process queued events
         self._transition_queue.append(trigger)
         # another entry in the queue implies a running transition; skip immediate execution
@@ -1088,8 +1087,7 @@ class Machine(object):
         # Machine.__dict__ does not contain double underscore variables.
         # Class variables will be mangled.
         if name.startswith('__'):
-            raise AttributeError("'{}' does not exist on <Machine@{}>"
-                                 .format(name, id(self)))
+            raise AttributeError(f"'{name}' does not exist on <Machine@{id(self)}>")
 
         # Could be a callback
         callback_type, target = self._identify_callback(name)
@@ -1097,8 +1095,10 @@ class Machine(object):
         if callback_type is not None:
             if callback_type in self.transition_cls.dynamic_methods:
                 if target not in self.events:
-                    raise AttributeError("event '{}' is not registered on <Machine@{}>"
-                                         .format(target, id(self)))
+                    raise AttributeError(
+                        f"event '{target}' is not registered on <Machine@{id(self)}>"
+                    )
+
                 return partial(self.events[target].add_callback, callback_type)
 
             elif callback_type in self.state_cls.dynamic_methods:
@@ -1106,7 +1106,7 @@ class Machine(object):
                 return partial(state.add_callback, callback_type[3:])
 
         # Nothing matched
-        raise AttributeError("'{}' does not exist on <Machine@{}>".format(name, id(self)))
+        raise AttributeError(f"'{name}' does not exist on <Machine@{id(self)}>")
 
 
 class MachineError(Exception):

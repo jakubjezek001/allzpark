@@ -68,14 +68,9 @@ class LockedEvent(Event):
 
     def trigger(self, model, *args, **kwargs):
         """ Extends transitions.core.Event.trigger by using locks/machine contexts. """
-        # pylint: disable=protected-access
-        # noinspection PyProtectedMember
-        # LockedMachine._locked should not be called somewhere else. That's why it should not be exposed
-        # to Machine users.
-        if self.machine._locked != get_ident():
-            with nested(*self.machine.model_context_map[model]):
-                return _super(LockedEvent, self).trigger(model, *args, **kwargs)
-        else:
+        if self.machine._locked == get_ident():
+            return _super(LockedEvent, self).trigger(model, *args, **kwargs)
+        with nested(*self.machine.model_context_map[model]):
             return _super(LockedEvent, self).trigger(model, *args, **kwargs)
 
 
@@ -156,10 +151,9 @@ class LockedMachine(Machine):
                 state.add_callback(prefix, callback)
 
     def _locked_method(self, func, *args, **kwargs):
-        if self._locked != get_ident():
-            with nested(*self.machine_context):
-                return func(*args, **kwargs)
-        else:
+        if self._locked == get_ident():
+            return func(*args, **kwargs)
+        with nested(*self.machine_context):
             return func(*args, **kwargs)
 
     def __enter__(self):

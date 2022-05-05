@@ -47,8 +47,7 @@ class Error(Tags):
                 which will be forwarded to the Tags constructor.
         """
         tags = kwargs.get('tags', [])
-        accepted = kwargs.pop('accepted', False)
-        if accepted:
+        if accepted := kwargs.pop('accepted', False):
             tags.append('accepted')
             kwargs['tags'] = tags
         super(Error, self).__init__(*args, **kwargs)
@@ -164,11 +163,20 @@ class Volatile(State):
 def add_state_features(*args):
     """ State feature decorator. Should be used in conjunction with a custom Machine class. """
     def _class_decorator(cls):
+
         class CustomState(type('CustomState', args, {}), cls.state_cls):
             """ The decorated State. It is based on the State class used by the decorated Machine. """
             pass
 
-        method_list = sum([c.dynamic_methods for c in inspect.getmro(CustomState) if hasattr(c, 'dynamic_methods')], [])
+        method_list = sum(
+            (
+                c.dynamic_methods
+                for c in inspect.getmro(CustomState)
+                if hasattr(c, 'dynamic_methods')
+            ),
+            [],
+        )
+
         CustomState.dynamic_methods = set(method_list)
         cls.state_cls = CustomState
         return cls

@@ -40,9 +40,7 @@ def find_latest(name, range_=None, paths=None):
     try:
         return list(it)[-1]
     except IndexError:
-        raise PackageNotFoundError(
-            "package family not found: %s" % name
-        )
+        raise PackageNotFoundError(f"package family not found: {name}")
 
 
 try:

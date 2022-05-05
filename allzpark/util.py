@@ -60,11 +60,9 @@ def cached(func):
         key = "{func}:{args}:{kwargs}".format(
             func=func.__name__,
             args=", ".join(str(arg) for arg in args),
-            kwargs=", ".join(
-                "%s=%s" % (key, value)
-                for key, value in kwargs.items()
-            )
+            kwargs=", ".join(f"{key}={value}" for key, value in kwargs.items()),
         )
+
 
         try:
             value = _lru_cache[key]
@@ -178,13 +176,12 @@ def iterable(arg):
 
 
 def open_file_location(fname):
-    if os.path.exists(fname):
-        if os.name == "nt":
-            subprocess.Popen("explorer /select,%s" % fname)
-        else:
-            webbrowser.open(os.path.dirname(fname))
+    if not os.path.exists(fname):
+        raise OSError(f"{fname} did not exist")
+    if os.name == "nt":
+        subprocess.Popen(f"explorer /select,{fname}")
     else:
-        raise OSError("%s did not exist" % fname)
+        webbrowser.open(os.path.dirname(fname))
 
 
 def normpath(path):

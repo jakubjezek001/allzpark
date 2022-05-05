@@ -82,10 +82,7 @@ class AbstractTableModel(QtCore.QAbstractTableModel):
         )
 
     def rowCount(self, parent=QtCore.QModelIndex()):
-        if parent.isValid():
-            return 0
-
-        return len(self.items)
+        return 0 if parent.isValid() else len(self.items)
 
     def columnCount(self, parent):
         return len(self.ColumnToKey)
@@ -191,7 +188,7 @@ class ApplicationModel(AbstractTableModel):
 
             data = allzparkconfig.metadata_from_package(app)
             tools = getattr(app, "tools", None) or [app.name]
-            app_request = "%s==%s" % (app.name, app.version)
+            app_request = f"{app.name}=={app.version}"
 
             item = {
                 "name": app_request,
@@ -227,9 +224,8 @@ class ApplicationModel(AbstractTableModel):
         except IndexError:
             return None
 
-        if data["hidden"]:
-            if role == QtCore.Qt.ForegroundRole:
-                return QtGui.QColor("gray")
+        if data["hidden"] and role == QtCore.Qt.ForegroundRole:
+            return QtGui.QColor("gray")
 
         if data["broken"]:
             if role == QtCore.Qt.ForegroundRole:
@@ -240,13 +236,11 @@ class ApplicationModel(AbstractTableModel):
                 font.setBold(True)
                 return font
 
-            if role == QtCore.Qt.DisplayRole:
-                if col == 0:
-                    return data["label"] + " (failed)"
+            if role == QtCore.Qt.DisplayRole and col == 0:
+                return data["label"] + " (failed)"
 
-            if role == IconRole:
-                if col == 0:
-                    return self._broken_icon
+            if role == IconRole and col == 0:
+                return self._broken_icon
 
         return super(ApplicationModel, self).data(index, role)
 
@@ -461,7 +455,7 @@ class PackagesModel(AbstractTableModel):
             package = self.data(index, "package").name
 
             if value and value != default:
-                log.info("Storing permanent override %s-%s" % (package, value))
+                log.info(f"Storing permanent override {package}-{value}")
                 self._overrides[package] = value
             else:
                 log.info("Resetting to default")
@@ -473,9 +467,9 @@ class PackagesModel(AbstractTableModel):
             value = bool(value)
 
             if value:
-                log.info("Disabling %s" % package)
+                log.info(f"Disabling {package}")
             else:
-                log.info("Enabling %s" % package)
+                log.info(f"Enabling {package}")
 
             self._disabled[package] = value
 
@@ -621,7 +615,7 @@ class ProxyModel(TriStateSortFilterProxyModel):
 
         def _add_rule(group, role, value):
             if role not in group:
-                group[role] = list()
+                group[role] = []
 
             group[role].append(value)
 
@@ -649,7 +643,7 @@ class ProxyModel(TriStateSortFilterProxyModel):
             regex = self.filterRegExp()
             if regex.pattern():
                 match = regex.indexIn(key)
-                return False if match == -1 else True
+                return match != -1
 
         for role, values in self.includes.items():
             if item.get(role) not in values:

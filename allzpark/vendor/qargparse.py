@@ -45,7 +45,7 @@ class QArgumentParser(QtWidgets.QWidget):
             )
 
         if storage is not None:
-            _log.info("Storing settings @ %s" % storage.fileName())
+            _log.info(f"Storing settings @ {storage.fileName()}")
 
         arguments = arguments or []
 
@@ -162,7 +162,7 @@ class QArgumentParser(QtWidgets.QWidget):
     def clear(self):
         assert self._storage, "Cannot clear without persistent storage"
         self._storage.clear()
-        _log.info("Clearing settings @ %s" % self._storage.fileName())
+        _log.info(f"Clearing settings @ {self._storage.fileName()}")
 
     def find(self, name):
         return self._arguments[name]
@@ -440,9 +440,7 @@ class Choice(QArgument):
                     if member == current:
                         break
                 else:
-                    raise ValueError(
-                        "%s not a member of %s" % (current, options)
-                    )
+                    raise ValueError(f"{current} not a member of {options}")
 
             qindex = model.index(index, 0, QtCore.QModelIndex())
             smodel.setCurrentIndex(qindex, smodel.ClearAndSelect)

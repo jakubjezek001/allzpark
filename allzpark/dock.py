@@ -39,7 +39,7 @@ class AbstractDockWidget(QtWidgets.QDockWidget):
 
         for name, widget in panels.items():
             widget.setAttribute(QtCore.Qt.WA_StyledBackground)
-            widget.setObjectName("dock%s" % name.title())
+            widget.setObjectName(f"dock{name.title()}")
 
         central = QtWidgets.QWidget()
 
@@ -181,21 +181,19 @@ class App(AbstractDockWidget):
 
     def refresh(self, index):
         name = index.data(QtCore.Qt.DisplayRole)
-        icon = index.data(QtCore.Qt.DecorationRole)
-
-        if icon:
+        if icon := index.data(QtCore.Qt.DecorationRole):
             icon = icon.pixmap(QtCore.QSize(px(32), px(32)))
             self._widgets["icon"].setPixmap(icon)
 
         self._widgets["label"].setText(name)
 
-        last_used = self._ctrl.state.retrieve("app/%s/lastUsed" % name)
+        last_used = self._ctrl.state.retrieve(f"app/{name}/lastUsed")
         last_used = time.strftime(
             "%Y-%m-%d %H:%M:%S", time.localtime(float(last_used))
         ) if last_used else "Never"
-        last_used = "Last used: %s" % last_used
+        last_used = f"Last used: {last_used}"
 
-        self._widgets["lastUsed"].setText("%s" % last_used)
+        self._widgets["lastUsed"].setText(f"{last_used}")
 
         model = index.model()
         tools = model.data(index, "tools")
@@ -245,7 +243,7 @@ class Console(AbstractDockWidget):
             logging.CRITICAL: "<font color=\"red\">",
         }.get(level, "<font color=\"#222\">")
 
-        line = "%s%s</font><br>" % (color, line)
+        line = f"{color}{line}</font><br>"
 
         cursor = self._widgets["text"].textCursor()
         cursor.movePosition(QtGui.QTextCursor.End)
@@ -449,7 +447,7 @@ class Packages(AbstractDockWidget):
             versions = model_.data(index, "versions")
             earliest = versions[0]
             package = model_.data(index, "package")
-            self._ctrl.patch("%s==%s" % (package.name, earliest))
+            self._ctrl.patch(f"{package.name}=={earliest}")
 
             self.message.emit("Package set to earliest")
 
@@ -457,7 +455,7 @@ class Packages(AbstractDockWidget):
             versions = model_.data(index, "versions")
             latest = versions[-1]
             package = model_.data(index, "package")
-            self._ctrl.patch("%s==%s" % (package.name, latest))
+            self._ctrl.patch(f"{package.name}=={latest}")
 
             self.message.emit("Package set to latest version")
 
@@ -465,14 +463,14 @@ class Packages(AbstractDockWidget):
             package = model_.data(index, "package")
             fname = os.path.join(package.root, "package.py")
             util.open_file_location(fname)
-            self.message.emit("Opened %s" % fname)
+            self.message.emit(f"Opened {fname}")
 
         def on_copyfile():
             package = model_.data(index, "package")
             fname = os.path.join(package.root, "package.py")
             clipboard = QtWidgets.QApplication.instance().clipboard()
             clipboard.setText(fname)
-            self.message.emit("Copied %s" % fname)
+            self.message.emit(f"Copied {fname}")
 
         def on_disable():
             model_.setData(index, None, "override")
@@ -786,7 +784,7 @@ class Commands(AbstractDockWidget):
             command = model.data(index, "object")
             pid = str(command.pid)
             clipboard.setText(pid)
-            self.message.emit("Copying %s" % pid)
+            self.message.emit(f"Copying {pid}")
 
         if model.data(index, "running") != "killed":
             copy_pid.triggered.connect(on_copy_pid)
@@ -843,10 +841,7 @@ class EnvironmentEditor(QtWidgets.QWidget):
         if not environ:
             return
 
-        text = "\n".join([
-            "%s=%s" % (key, value)
-            for key, value in environ.items()
-        ])
+        text = "\n".join([f"{key}={value}" for key, value in environ.items()])
 
         self._widgets["textEdit"].setPlainText(text)
 
@@ -872,7 +867,7 @@ class EnvironmentEditor(QtWidgets.QWidget):
             # Validate key
             validator = re.compile(r'^[A-Za-z0-9\._]+$')
             if not validator.match(key):
-                self.warning.emit("Invalid key: %s" % key)
+                self.warning.emit(f"Invalid key: {key}")
                 continue
 
             env[key] = value

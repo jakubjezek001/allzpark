@@ -64,13 +64,7 @@ def applications_from_package(variant):
     # May not be defined
     requirements = variant.requires or []
 
-    apps = list(
-        str(req)
-        for req in requirements
-        if req.weak
-    )
-
-    return apps
+    return [str(req) for req in requirements if req.weak]
 
 
 def metadata_from_package(variant):

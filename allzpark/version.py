@@ -7,6 +7,7 @@ deployed, this number is embedded into the Python package.
 
 """
 
+
 version = "1.2"
 
 try:
@@ -39,4 +40,4 @@ except ImportError:
         pass
 
     else:
-        version += ".%s" % _patch
+        version += f".{_patch}"

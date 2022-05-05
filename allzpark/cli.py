@@ -70,8 +70,7 @@ def _patch_allzparkconfig():
         if member.startswith("__"):
             continue
 
-        setattr(allzparkconfig, "_%s" % member,
-                getattr(allzparkconfig, member))
+        setattr(allzparkconfig, f"_{member}", getattr(allzparkconfig, member))
 
 
 @contextlib.contextmanager
@@ -346,9 +345,7 @@ def main():
         try:
             profiles = os.listdir(opts.root)
         except IOError:
-            warn(
-                "ERROR: Could not list directory %s" % opts.root
-            )
+            warn(f"ERROR: Could not list directory {opts.root}")
 
         # Support directory names that use dash in place of underscore
         profiles = [p.replace("-", "_") for p in profiles]

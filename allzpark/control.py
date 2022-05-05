@@ -127,7 +127,7 @@ class State(dict):
 
     def on_enter_noapps(self):
         profile = self["profileName"]
-        self._ctrl.debug("No applications were found for %s" % profile)
+        self._ctrl.debug(f"No applications were found for {profile}")
 
     def on_enter_loading(self):
         self._ctrl.debug("Loading..")
@@ -373,10 +373,11 @@ class Controller(QtCore.QObject):
 
             self._state["error"] = message.format(
                 package=package,
-                paths="<ul>%s</ul>" % "".join(
-                    "<li>%s</li>" % path for path in paths
-                )
+                paths=(
+                    "<ul>%s</ul>" % "".join(f"<li>{path}</li>" for path in paths)
+                ),
             )
+
 
             self._state.to_noapps()
             return True
@@ -400,10 +401,11 @@ class Controller(QtCore.QObject):
 
             self._state["error"] = message.format(
                 package=package,
-                paths="<ul>%s</ul>" % "".join(
-                    "<li>%s</li>" % path for path in paths
-                )
+                paths=(
+                    "<ul>%s</ul>" % "".join(f"<li>{path}</li>" for path in paths)
+                ),
             )
+
 
             self._state.to_noapps()
             return True
@@ -460,7 +462,7 @@ class Controller(QtCore.QObject):
 
         for pkg in it:
             if package_filter.excludes(pkg):
-                self.debug("Excluding %s==%s.." % (pkg.name, pkg.version))
+                self.debug(f"Excluding {pkg.name}=={pkg.version}..")
                 continue
 
             yield pkg
@@ -504,9 +506,10 @@ class Controller(QtCore.QObject):
 
         if mode == "used_resolve":
             packages = [
-                "%s==%s" % (pkg.name, pkg.version)
+                f"{pkg.name}=={pkg.version}"
                 for pkg in context.resolved_packages or []
             ]
+
 
         else:
             packages = [str(pkg) for pkg in context.requested_packages()]
@@ -562,7 +565,7 @@ class Controller(QtCore.QObject):
         assert root, "Tried resetting without a root, this is a bug"
 
         def do():
-            profiles = dict()
+            profiles = {}
             default_profile = None
 
             for name in self.list_profiles(root):
@@ -572,7 +575,7 @@ class Controller(QtCore.QObject):
                 for package in self.find(name):
 
                     if name not in profiles:
-                        profiles[name] = dict()
+                        profiles[name] = {}
 
                     profiles[name][str(package.version)] = package
                     profiles[name][Latest] = package
@@ -643,7 +646,7 @@ class Controller(QtCore.QObject):
         )
 
     def patch(self, new):
-        self.debug("Patching %s.." % new)
+        self.debug(f"Patching {new}..")
 
         new = rez.PackageRequest(new)
         old = odict(
@@ -729,11 +732,11 @@ class Controller(QtCore.QObject):
         tempdir = tempfile.mkdtemp()
 
         def do():
-            self.debug("Resolving %s.." % name)
+            self.debug(f"Resolving {name}..")
             variant = localz.resolve(name)[0]  # Guaranteed to be one
 
             try:
-                self.debug("Preparing %s.." % name)
+                self.debug(f"Preparing {name}..")
                 copied = localz.prepare(variant, tempdir, verbose=2)[0]
 
                 self.debug("Computing size..")
@@ -744,7 +747,7 @@ class Controller(QtCore.QObject):
                                          localz.localized_packages_path(),
                                          verbose=2)
 
-                self.debug("Localised %s" % result)
+                self.debug(f"Localised {result}")
 
             finally:
                 self.debug("Cleaning up..")
@@ -764,7 +767,7 @@ class Controller(QtCore.QObject):
         def do():
             item = self._models["packages"].find(name)
             package = item["package"]
-            self.debug("Delocalizing %s" % package.root)
+            self.debug(f"Delocalizing {package.root}")
             localz.delocalize(package)
 
         def on_success(result):
@@ -808,7 +811,7 @@ class Controller(QtCore.QObject):
                 if log.level == logging.DEBUG:
                     traceback.print_exc()
 
-                self.error("Could not find profiles in %s" % root)
+                self.error(f"Could not find profiles in {root}")
                 profiles = []
 
         # Facilitate accidental empty family names, e.g. None or ''
@@ -966,27 +969,23 @@ class Controller(QtCore.QObject):
         apps = []
         _apps = allzparkconfig.applications
 
-        if self._state.retrieve("showAllApps") and not _apps:
-            self.warning("Requires allzparkconfig.applications")
+        if self._state.retrieve("showAllApps"):
+            if not _apps:
+                self.warning("Requires allzparkconfig.applications")
 
-        elif self._state.retrieve("showAllApps"):
-            if isinstance(_apps, (tuple, list)):
+            elif isinstance(_apps, (tuple, list)):
                 apps = _apps
 
             else:
                 try:
-                    if callable(_apps):
-                        apps = _apps()
-                    else:
-                        apps = os.listdir(_apps)
+                    apps = _apps() if callable(_apps) else os.listdir(_apps)
                 except OSError as e:
-                    if e.errno not in (errno.ENOENT,
-                                       errno.EEXIST,
-                                       errno.ENOTDIR):
-                        raise
+                    if e.errno in (errno.ENOENT, errno.EEXIST, errno.ENOTDIR):
+                        self.warning("Could not show all apps, "
+                                     "missing `allzparkconfig.applications`")
 
-                    self.warning("Could not show all apps, "
-                                 "missing `allzparkconfig.applications`")
+                    else:
+                        raise
 
         if not apps:
             apps[:] = allzparkconfig.applications_from_package(profile)
@@ -1018,16 +1017,15 @@ class Controller(QtCore.QObject):
                         "Using first found: %s" % variant
                     )
 
-                app_request = "%s==%s" % (app_package.name,
-                                          app_package.version)
+                app_request = f"{app_package.name}=={app_package.version}"
 
                 request = [variant.qualified_package_name, app_request]
-                self.debug("Resolving request: %s" % " ".join(request))
+                self.debug(f'Resolving request: {" ".join(request)}')
 
                 context = self.env(request)
 
                 if context.success and patch:
-                    self.debug("Patching request: %s" % " ".join(request))
+                    self.debug(f'Patching request: {" ".join(request)}')
                     request = context.get_patched_request(patch)
                     context = self.env(
                         request,
@@ -1044,8 +1042,9 @@ class Controller(QtCore.QObject):
                 rez_pkg = next(
                     pkg
                     for pkg in rez_context.resolved_packages
-                    if "%s==%s" % (pkg.name, pkg.version) == app_request
+                    if f"{pkg.name}=={pkg.version}" == app_request
                 )
+
 
             except StopIteration:
                 rez_pkg = model.BrokenPackage(app_request)

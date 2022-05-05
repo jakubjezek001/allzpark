@@ -439,7 +439,7 @@ class Window(QtWidgets.QMainWindow):
         key = argument["name"]
         value = argument.read()
 
-        self.tell("Storing %s = %s" % (key, value))
+        self.tell(f"Storing {key} = {value}")
         self._ctrl.state.store(argument["name"], argument.read())
 
         # Subsequent settings are stored to disk
@@ -576,18 +576,17 @@ class Window(QtWidgets.QMainWindow):
                 icon = data["icon"].format(**values).replace("\\", "/")
 
             except KeyError:
-                self.tell("Misformatted %s.icon" % package.name)
+                self.tell(f"Misformatted {package.name}.icon")
 
             except TypeError:
                 self.tell("Unsupported package repository "
                           "for icon of %s" % package.uri)
 
             except Exception:
-                self.tell("Unexpected error coming from icon of %s"
-                          % package.uri)
+                self.tell(f"Unexpected error coming from icon of {package.uri}")
 
-        self.tell("%s %s-%s" % (action, profile, version))
-        self.setWindowTitle("%s  |  %s" % (label, self.title))
+        self.tell(f"{action} {profile}-{version}")
+        self.setWindowTitle(f"{label}  |  {self.title}")
 
         self._widgets["profileName"].setText(label)
         self._widgets["profileVersion"].setText(version)
@@ -630,7 +629,7 @@ class Window(QtWidgets.QMainWindow):
         self._docks["console"].append(message, level)
 
     def on_state_changed(self, state):
-        self.tell("State: %s" % state, logging.DEBUG)
+        self.tell(f"State: {state}", logging.DEBUG)
 
         page = self._pages.get(str(state), self._pages["home"])
         page_name = page.objectName()
@@ -711,7 +710,7 @@ class Window(QtWidgets.QMainWindow):
 
                 if app == name:
                     row = row_
-                    self.tell("Using startup application %s" % name)
+                    self.tell(f"Using startup application {name}")
                     break
 
         self._widgets["apps"].selectRow(row)
